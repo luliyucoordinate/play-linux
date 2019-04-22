@@ -28,7 +28,6 @@ int set_ticker(int n_msecs)
 
 void move_msg(int signum)
 {
-    signal(SIGALRM, move_msg);
     move(row, col);
     addstr(BLANK);
     col += dir;

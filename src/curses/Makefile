@@ -3,7 +3,7 @@ CFLAGS= -g -Wall
 LDFLAGS= -lcurses
 CC=gcc
 
-src = bounce2d.c 
+src = bounce1d.c 
 obj = $(patsubst %.c,%.o,$(src))
 target = app
 
