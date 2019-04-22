@@ -1,3 +1,6 @@
+#ifndef BOUNCE_H_
+#define BOUNCE_H_
+
 #define BLANK ' '
 #define DFL_SYMBOL 'o'
 #define TOP_ROW 5
@@ -18,3 +21,5 @@ struct ppball
         y_dir, x_dir;
     char symbol;
 };
+
+#endif
