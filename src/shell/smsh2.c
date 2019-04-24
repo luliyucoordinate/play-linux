@@ -5,6 +5,9 @@
 #include "include/smsh.h"
 
 #define DFL_PROMPT ">"
+void setup();
+void fatal(char *, char *, int);
+
 
 int main()
 {

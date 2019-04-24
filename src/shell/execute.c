@@ -25,5 +25,5 @@ int execute(char *argv[])
         if (wait(&chlid_info) == -1) perror("wait");
         return chlid_info;
     }
-    
+    return 0;
 }

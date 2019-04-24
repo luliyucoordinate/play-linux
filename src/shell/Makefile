@@ -3,7 +3,7 @@ CFLAGS= -g -Wall
 LDFLAGS=
 CC=gcc
 
-src = smsh1.c splitline.c execute.c
+src = smsh2.c splitline.c execute.c process.c controlflow.c
 obj = $(patsubst %.c,%.o,$(src))
 target = app
 

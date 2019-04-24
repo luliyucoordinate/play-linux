@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "include/smsh.h"
 
 enum states {NEUTRAL, WANT_THEN, THEN_BLOCK};
@@ -13,7 +14,7 @@ int syn_err(char *);
 int ok_to_execute()
 {
     int res = 1;
-    if (if_state = WANT_THEN)
+    if (if_state == WANT_THEN)
     {
         syn_err("then expected");
         res = 0;
@@ -69,6 +70,6 @@ int do_control_command(char **args)
 int syn_err(char *msg)
 {
     if_state = NEUTRAL;
-    fprintf(stderr, 'syntax error: %s\n', msg);
+    fprintf(stderr, "syntax error: %s\n", msg);
     return -1;
 }

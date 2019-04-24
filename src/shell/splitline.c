@@ -27,6 +27,13 @@ char *next_cmd(char *prompt, FILE* fp)
 }
 
 #define is_delim(x) ((x) == ' ' || (x) == '\t')
+char *newstr(char *s, int l)
+{
+    char *rv = emalloc(l+1);
+    rv[l] = '\0';
+    strncpy(rv, s, l);
+    return rv;
+}
 
 char **splitline(char *line)
 {
@@ -59,13 +66,6 @@ char **splitline(char *line)
     return args;
 }
 
-char *newstr(char *s, int l)
-{
-    char *rv = emalloc(l+1);
-    rv[l] = '\0';
-    strncpy(rv, s, l);
-    return rv;
-}
 
 void freelist(char **list)
 {
