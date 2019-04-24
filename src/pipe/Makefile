@@ -1,9 +1,9 @@
 CPPFLAGS= -Iinclude
 CFLAGS= -g -Wall
-LDFLAGS=
+LDFLAGS= -lcurses
 CC=gcc
 
-src = smsh1.c splitline.c execute.c
+src = pipedemo2.c 
 obj = $(patsubst %.c,%.o,$(src))
 target = app
 
