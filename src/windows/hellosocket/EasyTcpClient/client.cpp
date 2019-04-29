@@ -4,6 +4,12 @@
 #include <WinSock2.h>
 #include <stdio.h>
 #pragma comment(lib, "ws2_32.lib")
+
+struct DataPackage {
+    int age;
+    char name[32];
+};
+
 int main()
 {
     WORD ver = MAKEWORD(2, 2);
@@ -37,7 +43,8 @@ int main()
         char recvbuf[128] = {};
         int nLen = recv(_sock, recvbuf, 128, 0);
         if (nLen > 0) {
-            printf("%s\n", recvbuf);
+            DataPackage* dp = (DataPackage*)recvbuf;
+            printf("age:%d name:%s\n", dp->age ,dp->name);
         }
         else {
             printf("recv error\n");
