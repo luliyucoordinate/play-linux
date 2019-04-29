@@ -5,9 +5,32 @@
 #include <stdio.h>
 #pragma comment(lib, "ws2_32.lib")
 
-struct DataPackage {
-    int age;
-    char name[32];
+enum CMD {
+    CMD_LOGIN,
+    CMD_LOGOUT,
+    CMD_ERROR
+};
+
+struct DataHeader {
+    short dataLength; //data length
+    short cmd;
+};
+
+struct Login {
+    char userName[32];
+    char passWord[32];
+};
+
+struct LoginResult {
+    int res;
+};
+
+struct Logout {
+    char username[32];
+};
+
+struct LogoutResult {
+    int res;
 };
 
 int main()
@@ -37,17 +60,33 @@ int main()
         if (0 == strcmp(cmdBuf, "exit")) {
             break;
         }
-        else {
-            send(_sock, cmdBuf, strlen(cmdBuf)+1, 0);
+        else if (0 == strcmp(cmdBuf, "login")) {
+            Login login = { "lly", "lly" };
+            DataHeader dh = { sizeof(Login), CMD_LOGIN };
+            send(_sock, (const char*)&dh, sizeof(DataHeader), 0);
+            send(_sock, (const char*)&login, sizeof(login), 0);
+            //recv from server
+            DataHeader retHeader = {};
+            LoginResult loginret = {};
+            recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
+            recv(_sock, (char*)&loginret, sizeof(LoginResult), 0);
+            printf("LoginResult: %d\n", loginret.res);
         }
-        char recvbuf[128] = {};
-        int nLen = recv(_sock, recvbuf, 128, 0);
-        if (nLen > 0) {
-            DataPackage* dp = (DataPackage*)recvbuf;
-            printf("age:%d name:%s\n", dp->age ,dp->name);
+        else if (0 == strcmp(cmdBuf, "logout")) {
+            Logout logout = {"lly"};
+            DataHeader dh = { sizeof(Logout),CMD_LOGOUT };
+            //向服务器发送请求命令
+            send(_sock, (const char*)&dh, sizeof(DataHeader), 0);
+            send(_sock, (const char*)&logout, sizeof(logout), 0);
+            //接受服务器返回的数据
+            DataHeader retHeader = {};
+            LogoutResult logoutRet = {};
+            recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
+            recv(_sock, (char*)&logoutRet, sizeof(LogoutResult), 0);
+            printf("LoginResult: %d\n", logoutRet.res);
         }
         else {
-            printf("recv error\n");
+            printf("unknowned cmd\n");
         }
     }
 

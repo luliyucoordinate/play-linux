@@ -6,10 +6,32 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
+enum CMD{
+    CMD_LOGIN,
+    CMD_LOGOUT,
+    CMD_ERROR
+};
 
-struct DataPackage {
-    int age;
-    char name[32];
+struct DataHeader {
+    short dataLength; //data length
+    short cmd;
+};
+
+struct Login {
+    char userName[32];
+    char passWord[32];
+};
+
+struct LoginResult {
+    int res;
+};
+
+struct Logout {
+    char username[32];
+};
+
+struct LogoutResult {
+    int res;
 };
 
 int main()
@@ -41,23 +63,43 @@ int main()
         }
         printf("new clinet:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
 
-        char _recvBuf[128] = {};
+        
         while (true)
         {
+            DataHeader header = {};
+
             //recv from client
-            int nLen = recv(_cSock, _recvBuf, 128, 0);
+            int nLen = recv(_cSock, (char *)&header, sizeof(header), 0);
             if (nLen <= 0) {
                 printf("client quit");
                 break;
             }
-            printf("recv cmd : %s\n", _recvBuf);
-            if (0 == strcmp(_recvBuf, "getInfo")) {
-                DataPackage dp = { 80, "xiao xiao" };
-                send(_cSock, (const char *)&dp, sizeof(DataPackage), 0);
-            }
-            else {
-                char buf[] = "???";
-                send(_cSock, buf, strlen(buf) + 1, 0);
+            printf("recv cmd : %d, data len:%d\n", header.cmd, header.dataLength);
+            switch (header.cmd)
+            {
+                case CMD_LOGIN:
+                {
+                    Login login = {};
+                    recv(_cSock, (char*)&login, sizeof(Login), 0);
+                    LoginResult res = {};
+                    send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+                    send(_cSock, (char*)&res, sizeof(LoginResult), 0);
+                }
+                break;
+                case CMD_LOGOUT:
+                {
+                    Logout Logout = {};
+                    recv(_cSock, (char*)&Logout, sizeof(Login), 0);
+                    LogoutResult res = {1};
+                    send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+                    send(_cSock, (char*)&res, sizeof(LogoutResult), 0);
+                }
+                break;
+                default:
+                    header.cmd = CMD_ERROR;
+                    header.dataLength = 0;
+                    send(_cSock, (char*)&header, sizeof(header), 0);
+                    break;
             }
         }
     }
