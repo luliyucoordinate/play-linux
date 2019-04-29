@@ -23,16 +23,30 @@ int main()
         printf("connect error\n");
     }
     
-    char recvbuf[256] = {};
-    int nLen = recv(_sock, recvbuf, 256, 0);
-    if (nLen > 0) {
-        printf("%s\n", recvbuf);
+    
+    while (true)
+    {
+        char cmdBuf[128] = {};
+        scanf("%s", cmdBuf);
+        if (0 == strcmp(cmdBuf, "exit")) {
+            break;
+        }
+        else {
+            send(_sock, cmdBuf, strlen(cmdBuf)+1, 0);
+        }
+        char recvbuf[128] = {};
+        int nLen = recv(_sock, recvbuf, 128, 0);
+        if (nLen > 0) {
+            printf("%s\n", recvbuf);
+        }
+        else {
+            printf("recv error\n");
+        }
     }
-    else {
-        printf("recv error\n");
-    }
+
 
     closesocket(_sock);
     WSACleanup();
+    printf("client quit");
     getchar();
 }

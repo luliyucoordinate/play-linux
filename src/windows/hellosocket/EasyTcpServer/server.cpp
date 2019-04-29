@@ -23,7 +23,7 @@ int main()
 
     sockaddr_in clientAddr = {};
     int nAddrLen = sizeof(sockaddr_in);
-    char buf[] = "hello";
+    
 
     while (true)
     {
@@ -33,9 +33,34 @@ int main()
             printf("error, none clinet!\n");
         }
         printf("new clinet:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
-        send(_cSock, buf, strlen(buf) + 1, 0);
-    }
 
+        char _recvBuf[128] = {};
+        while (true)
+        {
+            //recv from client
+            int nLen = recv(_cSock, _recvBuf, 128, 0);
+            if (nLen <= 0) {
+                printf("client quit");
+                break;
+            }
+            printf("recv cmd : %s\n", _recvBuf);
+            if (0 == strcmp(_recvBuf, "getName")) {
+                char buf[] = "xiao xiao";
+                send(_cSock, buf, strlen(buf) + 1, 0);
+            }
+            else if (0 == strcmp(_recvBuf, "getAge")) {
+                char buf[] = "30";
+                send(_cSock, buf, strlen(buf) + 1, 0);
+            }
+            else {
+                char buf[] = "???";
+                send(_cSock, buf, strlen(buf) + 1, 0);
+            }
+        }
+    }
+   
     closesocket(_sock);
     WSACleanup();
+    printf("server quit");
+    getchar();
 }
