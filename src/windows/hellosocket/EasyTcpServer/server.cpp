@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <WinSock2.h>
 #include <stdio.h>
+#include <vector>
+using namespace std;
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -45,6 +47,47 @@ struct LogoutResult : public DataHeader {
     int res;
 };
 
+vector<SOCKET> g_clients;
+
+int processor(SOCKET _cSock)
+{
+    DataHeader header;
+
+    //recv from client
+    int nLen = recv(_cSock, (char *)&header, sizeof(header), 0);
+    if (nLen <= 0) {
+        printf("client quit\n");
+        return -1;
+    }
+
+    switch (header.cmd)
+    {
+    case CMD_LOGIN:
+    {
+        Login login = {};
+        recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
+        printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", header.dataLength, login.userName, login.passWord);
+        LoginResult res;
+        send(_cSock, (char*)&res, sizeof(LoginResult), 0);
+    }
+    break;
+    case CMD_LOGOUT:
+    {
+        Logout logout = {};
+        recv(_cSock, (char*)&logout + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
+        printf("recv cmd_login ,data len:%d, userName=%s\n", header.dataLength, logout.userName);
+        LogoutResult res;
+        send(_cSock, (char*)&res, sizeof(LogoutResult), 0);
+    }
+    break;
+    default:
+        header.cmd = CMD_ERROR;
+        header.dataLength = 0;
+        send(_cSock, (char*)&header, sizeof(header), 0);
+        break;
+    }
+}
+
 int main()
 {
     WORD ver = MAKEWORD(2, 2);
@@ -61,60 +104,60 @@ int main()
     }
     if (SOCKET_ERROR == listen(_sock, 5)) printf("listen error \n");
 
-    sockaddr_in clientAddr = {};
-    int nAddrLen = sizeof(sockaddr_in);
-    
-
     while (true)
     {
-        SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
-        if (INVALID_SOCKET == _cSock)
+        fd_set fdRead, fdWrite, fdExcept;
+
+        FD_ZERO(&fdRead);
+        FD_ZERO(&fdWrite);
+        FD_ZERO(&fdExcept);
+
+        FD_SET(_sock, &fdRead);
+        FD_SET(_sock, &fdWrite);
+        FD_SET(_sock, &fdExcept);
+
+        for (size_t i = 0; i < g_clients.size(); ++i)
         {
-            printf("error, none clinet!\n");
+            FD_SET(g_clients[i], &fdRead);
         }
-        printf("new clinet:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
 
-        
-        while (true)
+        timeval t = { 0, 0 };
+        int res = select(_sock + 1, &fdRead, &fdWrite, &fdExcept, t);
+        if (res < 0)
         {
-            DataHeader header;
+            printf("select error\n");
+            break;
+        }
 
-            //recv from client
-            int nLen = recv(_cSock, (char *)&header, sizeof(header), 0);
-            if (nLen <= 0) {
-                printf("client quit");
-                break;
-            }
-            
-            switch (header.cmd)
+        if (FD_ISSET(_sock, &fdRead))
+        {
+            FD_CLR(_sock, &fdRead);
+            sockaddr_in clientAddr = {};
+            int nAddrLen = sizeof(sockaddr_in);
+            SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+            if (INVALID_SOCKET == _cSock)
             {
-                case CMD_LOGIN:
-                {
-                    Login login = {};
-                    recv(_cSock, (char*)&login+sizeof(DataHeader), sizeof(Login)-sizeof(DataHeader), 0);
-                    printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", header.dataLength, login.userName, login.passWord);
-                    LoginResult res;
-                    send(_cSock, (char*)&res, sizeof(LoginResult), 0);
-                }
-                break;
-                case CMD_LOGOUT:
-                {
-                    Logout logout = {};
-                    recv(_cSock, (char*)&logout+ sizeof(DataHeader), sizeof(Login)- sizeof(DataHeader), 0);
-                    printf("recv cmd_login ,data len:%d, userName=%s\n", header.dataLength, logout.userName);
-                    LogoutResult res;
-                    send(_cSock, (char*)&res, sizeof(LogoutResult), 0);
-                }
-                break;
-                default:
-                    header.cmd = CMD_ERROR;
-                    header.dataLength = 0;
-                    send(_cSock, (char*)&header, sizeof(header), 0);
-                    break;
+                printf("error, none client!\n");
+            }
+            g_clients.push_back(_cSock);
+            printf("new client:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
+        }
+
+
+        for (size_t i = 0; i < fdRead.fd_count; ++i)
+        {
+            if (-1 == processor(fdRead.fd_array[i]))
+            {
+                auto iter = find(g_clients.begin(), g_clients.end(), fdRead.fd_array[i]);
+                if (iter != g_clients.end()) g_clients.erase(iter);
             }
         }
     }
    
+    for (size_t i = 0; i < g_clients.size(); ++i)
+    {
+        closesocket(g_clients[i]);
+    }
     closesocket(_sock);
     WSACleanup();
     printf("server quit");
