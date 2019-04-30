@@ -1,10 +1,22 @@
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
-#include <WinSock2.h>
+#ifdef _WIN32
+    #include <windows.h>
+    #include <WinSock2.h>
+    #pragma comment(lib, "ws2_32.lib")
+#else
+    #include <unistd.h>
+    #include <arpa/inet.h>
+    #include <string.h>
+
+    #define SOCKET          int
+    #define INVALID_SOCKET  (SOCKET)(-0)
+    #define SOCKET_ERROR    (-1)
+#endif
+
 #include <stdio.h>
 #include <thread>
-#pragma comment(lib, "ws2_32.lib")
+
 
 enum CMD {
     CMD_LOGIN,
@@ -59,7 +71,7 @@ int processor(SOCKET _cSock)
     //recv from client
     int nLen = recv(_cSock, (char *)&header, sizeof(header), 0);
     if (nLen <= 0) {
-        printf("bye to server\n", _cSock);
+        printf("bye to server\n");
         return -1;
     }
 
@@ -89,6 +101,7 @@ int processor(SOCKET _cSock)
     default:
         break;
     }
+    return 0;
 }
 
 bool g_bRun = true;
@@ -125,9 +138,11 @@ void cmdThread(SOCKET _sock)
 
 int main()
 {
+#ifdef _WIN32
     WORD ver = MAKEWORD(2, 2);
     WSADATA dat;
     WSAStartup(ver, &dat);
+#endif
 
     SOCKET _sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (INVALID_SOCKET == _sock) {
@@ -137,7 +152,11 @@ int main()
     sockaddr_in _sin = {};
     _sin.sin_family = AF_INET;
     _sin.sin_port = htons(14567);
+#ifdef _WIN32
     _sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
+#else
+    _sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+#endif
     if (SOCKET_ERROR == connect(_sock, (sockaddr*)&_sin, sizeof(_sin))) {
         printf("connect error\n");
     }
@@ -151,8 +170,9 @@ int main()
         fd_set fdReads;
         FD_ZERO(&fdReads);
         FD_SET(_sock, &fdReads);
+
         timeval t = {1, 0};
-        int res = select(_sock + 1, &fdReads, NULL, NULL, &t);
+        int res = select(_sock + 1, &fdReads, NULL, NULL, &t); //mac os should (_sock+1)
         if (res < 0) {
             printf("select error\n");
             break;
@@ -168,10 +188,12 @@ int main()
             }
         }
     }
-    //thread
-
+#ifdef _WIN32
     closesocket(_sock);
     WSACleanup();
+#else 
+    close(_sock);
+#endif
     printf("client quit");
     getchar();
 }

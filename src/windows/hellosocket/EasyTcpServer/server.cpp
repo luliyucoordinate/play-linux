@@ -1,12 +1,24 @@
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
-#include <WinSock2.h>
+#ifdef _WIN32
+    #include <windows.h>
+    #include <WinSock2.h>
+    #pragma comment(lib, "ws2_32.lib")
+#else
+    #include <unistd.h>
+    #include <arpa/inet.h>
+    #include <string.h>
+
+    #define SOCKET          int
+    #define INVALID_SOCKET  (SOCKET)(-0)
+    #define SOCKET_ERROR    (-1)
+#endif
+
 #include <stdio.h>
 #include <vector>
+#include <algorithm>
 using namespace std;
 
-#pragma comment(lib, "ws2_32.lib")
 
 enum CMD{
     CMD_LOGIN,
@@ -93,19 +105,26 @@ int processor(SOCKET _cSock)
         send(_cSock, (char*)&header, sizeof(header), 0);
         break;
     }
+    return 0;
 }
 
 int main()
 {
+#ifdef _WIN32
     WORD ver = MAKEWORD(2, 2);
     WSADATA dat;
     WSAStartup(ver, &dat);
+#endif
 
     SOCKET _sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     sockaddr_in _sin = {};
     _sin.sin_family = AF_INET;
     _sin.sin_port = htons(14567);
+#ifdef _WIN32
     _sin.sin_addr.S_un.S_addr = INADDR_ANY;
+#else
+    _sin.sin_addr.s_addr = INADDR_ANY;
+#endif
     if (bind(_sock, (sockaddr*)&_sin, sizeof _sin) == SOCKET_ERROR) {
         printf("bind error\n");
     }
@@ -123,13 +142,16 @@ int main()
         FD_SET(_sock, &fdWrite);
         FD_SET(_sock, &fdExcept);
 
+        SOCKET maxSock = _sock;
+
         for (size_t i = 0; i < g_clients.size(); ++i)
         {
             FD_SET(g_clients[i], &fdRead);
+            maxSock = max(maxSock, (int)g_clients[i]);
         }
 
         timeval t = { 0, 0 };
-        int res = select(_sock + 1, &fdRead, &fdWrite, &fdExcept, &t);
+        int res = select(maxSock + 1, &fdRead, &fdWrite, &fdExcept, &t);
         if (res < 0)
         {
             printf("select error\n");
@@ -141,7 +163,7 @@ int main()
             FD_CLR(_sock, &fdRead);
             sockaddr_in clientAddr = {};
             int nAddrLen = sizeof(sockaddr_in);
-            SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+            SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, (socklen_t *)&nAddrLen);
             if (INVALID_SOCKET == _cSock)
             {
                 printf("error, none client!\n");
@@ -157,8 +179,21 @@ int main()
                 printf("new client:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
             }
         }
-
-
+       for (size_t i = 0; i < g_clients.size(); ++i)
+        {
+            if (FD_ISSET(g_clients[i], &fdRead))
+            {
+                if (-1 == processor(g_clients[i]))
+                {
+                    auto iter = g_clients.begin();
+                    if (iter != g_clients.end())
+                    {
+                        g_clients.erase(iter);
+                    }
+                }
+            }
+        }
+        /* for windows
         for (size_t i = 0; i < fdRead.fd_count; ++i)
         {
             if (-1 == processor(fdRead.fd_array[i]))
@@ -167,14 +202,23 @@ int main()
                 if (iter != g_clients.end()) g_clients.erase(iter);
             }
         }
+        */
     }
    
+#ifdef _WIN32
     for (size_t i = 0; i < g_clients.size(); ++i)
     {
         closesocket(g_clients[i]);
     }
     closesocket(_sock);
     WSACleanup();
+#else 
+    for (size_t i = 0; i < g_clients.size(); ++i)
+    {
+        close(g_clients[i]);
+    }
+    close(_sock);
+#endif
     printf("server quit");
     getchar();
 }
