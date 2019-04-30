@@ -146,13 +146,16 @@ int main()
             {
                 printf("error, none client!\n");
             }
-            for (size_t i = 0; i < g_clients.size(); ++i)
+            else
             {
-                NewUserJoin userJoin;
-                send(g_clients[i], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+                for (size_t i = 0; i < g_clients.size(); ++i)
+                {
+                    NewUserJoin userJoin;
+                    send(g_clients[i], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+                }
+                g_clients.push_back(_cSock);
+                printf("new client:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
             }
-            g_clients.push_back(_cSock);
-            printf("new client:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
         }
 
 

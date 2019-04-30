@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <WinSock2.h>
 #include <stdio.h>
+#include <thread>
 #pragma comment(lib, "ws2_32.lib")
 
 enum CMD {
@@ -90,6 +91,38 @@ int processor(SOCKET _cSock)
     }
 }
 
+bool g_bRun = true;
+void cmdThread(SOCKET _sock)
+{
+    while (true)
+    {
+        char cmdBuf[256] = {};
+        scanf("%s", cmdBuf);
+        if (0 == strcmp(cmdBuf, "exit")) {
+            g_bRun = false;
+            printf("client exit\n");
+            return;
+        }
+        else if (0 == strcmp(cmdBuf, "login"))
+        {
+            Login login;
+            strcpy(login.userName, "lly");
+            strcpy(login.passWord, "lly");
+            send(_sock, (const char*)&login, sizeof(Login), 0);
+        }
+        else if (0 == strcmp(cmdBuf, "logout"))
+        {
+            Logout logout;
+            strcpy(logout.userName, "lly");
+            send(_sock, (const char*)&logout, sizeof(Login), 0);
+        }
+        else
+        {
+            printf("do not apply\n");
+        }
+    }  
+}
+
 int main()
 {
     WORD ver = MAKEWORD(2, 2);
@@ -109,8 +142,11 @@ int main()
         printf("connect error\n");
     }
     
-    
-    while (true)
+    //thread 
+    std::thread t1(cmdThread, _sock);
+    t1.detach();
+
+    while (g_bRun)
     {
         fd_set fdReads;
         FD_ZERO(&fdReads);
@@ -132,7 +168,7 @@ int main()
             }
         }
     }
-
+    //thread
 
     closesocket(_sock);
     WSACleanup();
