@@ -13,6 +13,7 @@ enum CMD{
     CMD_LOGIN_RESULT,
     CMD_LOGOUT,
     CMD_LOGOUT_RESULT,
+    CMD_NEW_USER_JOIN,
     CMD_ERROR
 };
 
@@ -47,6 +48,12 @@ struct LogoutResult : public DataHeader {
     int res;
 };
 
+struct NewUserJoin : public DataHeader {
+    NewUserJoin() : DataHeader(sizeof(Login), CMD_NEW_USER_JOIN), sock(0) {}
+
+    int sock;
+};
+
 vector<SOCKET> g_clients;
 
 int processor(SOCKET _cSock)
@@ -56,7 +63,7 @@ int processor(SOCKET _cSock)
     //recv from client
     int nLen = recv(_cSock, (char *)&header, sizeof(header), 0);
     if (nLen <= 0) {
-        printf("client quit\n");
+        printf("client<Socket=%d> quit\n", _cSock);
         return -1;
     }
 
@@ -122,7 +129,7 @@ int main()
         }
 
         timeval t = { 0, 0 };
-        int res = select(_sock + 1, &fdRead, &fdWrite, &fdExcept, t);
+        int res = select(_sock + 1, &fdRead, &fdWrite, &fdExcept, &t);
         if (res < 0)
         {
             printf("select error\n");
@@ -138,6 +145,11 @@ int main()
             if (INVALID_SOCKET == _cSock)
             {
                 printf("error, none client!\n");
+            }
+            for (size_t i = 0; i < g_clients.size(); ++i)
+            {
+                NewUserJoin userJoin;
+                send(g_clients[i], (const char*)&userJoin, sizeof(NewUserJoin), 0);
             }
             g_clients.push_back(_cSock);
             printf("new client:IP=%s\n", inet_ntoa(clientAddr.sin_addr));
