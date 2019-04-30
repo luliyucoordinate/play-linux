@@ -8,29 +8,40 @@
 
 enum CMD{
     CMD_LOGIN,
+    CMD_LOGIN_RESULT,
     CMD_LOGOUT,
+    CMD_LOGOUT_RESULT,
     CMD_ERROR
 };
 
 struct DataHeader {
+    DataHeader(short dl=0, short cd=CMD_ERROR) : dataLength(dl), cmd(cd){}
     short dataLength; //data length
     short cmd;
 };
 
-struct Login {
+struct Login : public DataHeader{
+    Login() : DataHeader(sizeof(Login), CMD_LOGIN) {}
+
     char userName[32];
     char passWord[32];
 };
 
-struct LoginResult {
+struct LoginResult : public DataHeader {
+    LoginResult() : DataHeader(sizeof(Login), CMD_LOGIN_RESULT), res(0) {}
+
     int res;
 };
 
-struct Logout {
-    char username[32];
+struct Logout : public DataHeader {
+    Logout() : DataHeader(sizeof(Login), CMD_LOGOUT) {}
+
+    char userName[32];
 };
 
-struct LogoutResult {
+struct LogoutResult : public DataHeader {
+    LogoutResult() : DataHeader(sizeof(Login), CMD_LOGOUT_RESULT), res(0) {}
+
     int res;
 };
 
@@ -66,7 +77,7 @@ int main()
         
         while (true)
         {
-            DataHeader header = {};
+            DataHeader header;
 
             //recv from client
             int nLen = recv(_cSock, (char *)&header, sizeof(header), 0);
@@ -74,24 +85,24 @@ int main()
                 printf("client quit");
                 break;
             }
-            printf("recv cmd : %d, data len:%d\n", header.cmd, header.dataLength);
+            
             switch (header.cmd)
             {
                 case CMD_LOGIN:
                 {
                     Login login = {};
-                    recv(_cSock, (char*)&login, sizeof(Login), 0);
-                    LoginResult res = {};
-                    send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+                    recv(_cSock, (char*)&login+sizeof(DataHeader), sizeof(Login)-sizeof(DataHeader), 0);
+                    printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", header.dataLength, login.userName, login.passWord);
+                    LoginResult res;
                     send(_cSock, (char*)&res, sizeof(LoginResult), 0);
                 }
                 break;
                 case CMD_LOGOUT:
                 {
-                    Logout Logout = {};
-                    recv(_cSock, (char*)&Logout, sizeof(Login), 0);
-                    LogoutResult res = {1};
-                    send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+                    Logout logout = {};
+                    recv(_cSock, (char*)&logout+ sizeof(DataHeader), sizeof(Login)- sizeof(DataHeader), 0);
+                    printf("recv cmd_login ,data len:%d, userName=%s\n", header.dataLength, logout.userName);
+                    LogoutResult res;
                     send(_cSock, (char*)&res, sizeof(LogoutResult), 0);
                 }
                 break;
