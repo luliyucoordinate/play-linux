@@ -1,6 +1,5 @@
-#define WIN32_LEAN_AND_MEAN
-
 #ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
     #include <WinSock2.h>
     #pragma comment(lib, "ws2_32.lib")
@@ -155,7 +154,7 @@ int main()
 #ifdef _WIN32
     _sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 #else
-    _sin.sin_addr.s_addr = inet_addr("127.0.0.1");
+    _sin.sin_addr.s_addr = inet_addr("172.17.175.122");
 #endif
     if (SOCKET_ERROR == connect(_sock, (sockaddr*)&_sin, sizeof(_sin))) {
         printf("connect error\n");

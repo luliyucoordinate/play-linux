@@ -1,6 +1,5 @@
-#define WIN32_LEAN_AND_MEAN
-
 #ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
     #include <WinSock2.h>
     #pragma comment(lib, "ws2_32.lib")
@@ -163,7 +162,11 @@ int main()
             FD_CLR(_sock, &fdRead);
             sockaddr_in clientAddr = {};
             int nAddrLen = sizeof(sockaddr_in);
+#ifndef _WIN32
             SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, (socklen_t *)&nAddrLen);
+#else
+            SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+#endif
             if (INVALID_SOCKET == _cSock)
             {
                 printf("error, none client!\n");
@@ -185,7 +188,7 @@ int main()
             {
                 if (-1 == processor(g_clients[i]))
                 {
-                    auto iter = g_clients.begin();
+                    auto iter = g_clients.begin() + i;
                     if (iter != g_clients.end())
                     {
                         g_clients.erase(iter);
