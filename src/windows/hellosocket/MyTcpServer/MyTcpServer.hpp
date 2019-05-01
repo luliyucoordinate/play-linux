@@ -23,6 +23,46 @@
 #include "MessageHeader.hpp"
 
 
+#ifndef RECV_BUF_SIZE
+#define RECV_BUF_SIZE 10240
+#endif // !RECV_BUF_SIZE
+
+
+class ClientSocket
+{
+public:
+    ClientSocket(SOCKET sockfd=INVALID_SOCKET) :
+        _sockfd(sockfd),
+        _lastPos(0)
+    {
+        memset(_szMsgBuf, 0, RECV_BUF_SIZE * 10);
+    }
+
+    SOCKET sockfd()
+    {
+        return _sockfd;
+    }
+
+    char* msgBuf()
+    {
+        return _szMsgBuf;
+    }
+
+    int getLastPos()
+    {
+        return _lastPos;
+    }
+
+    void setLastPos(int pos)
+    {
+        _lastPos = pos;
+    }
+private:
+    SOCKET _sockfd;
+    int _lastPos;
+
+    char _szMsgBuf[RECV_BUF_SIZE * 10];
+};
 
 class MyTcpServer
 {
@@ -30,7 +70,7 @@ public:
     MyTcpServer() :
         _sock(INVALID_SOCKET)
     {
-
+        memset(_szRecv, 0, RECV_BUF_SIZE);
     }
     virtual ~MyTcpServer()
     {
@@ -47,7 +87,7 @@ public:
         WSAStartup(ver, &dat);
 #endif
         
-        if (INVALID_SOCKET == _sock) 
+        if (INVALID_SOCKET != _sock) 
         {
             printf("close old socket...\n");
             Close();
@@ -114,19 +154,21 @@ public:
         if (INVALID_SOCKET != _sock)
         {
 #ifdef _WIN32
-            for (size_t i = 0; i < g_clients.size(); ++i)
+            for (size_t i = 0; i < _clients.size(); ++i)
             {
-                closesocket(g_clients[i]);
+                closesocket(_clients[i]->sockfd());
+                delete _clients[i];
             }
             closesocket(_sock);
             WSACleanup();
 #else 
-            for (size_t i = 0; i < g_clients.size(); ++i)
+            for (size_t i = 0; i < _clients.size(); ++i)
             {
-                close(g_clients[i]);
+                close(_clients[i]);
             }
             close(_sock);
 #endif
+            _clients.clear();
             _sock = INVALID_SOCKET;
         }
     }
@@ -150,22 +192,22 @@ public:
         sockaddr_in clientAddr = {};
         int nAddrLen = sizeof(sockaddr_in);
 #ifndef _WIN32
-        SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, (socklen_t *)&nAddrLen);
+        SOCKET cSock = accept(_sock, (sockaddr*)&clientAddr, (socklen_t *)&nAddrLen);
 #else
-        SOCKET _cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
+        SOCKET cSock = accept(_sock, (sockaddr*)&clientAddr, &nAddrLen);
 #endif
-        if (INVALID_SOCKET == _cSock)
+        if (INVALID_SOCKET == cSock)
         {
-            printf("socket<%d> error, none client!\n", (int)_cSock);
+            printf("socket<%d> error, none client!\n", (int)cSock);
         }
         else
         {
             NewUserJoin userJoin;
             SendDataToAll(&userJoin);
-            g_clients.push_back(_cSock);
-            printf("new client<%d> :IP=%s\n", int(_cSock), inet_ntoa(clientAddr.sin_addr));
+            _clients.push_back(new ClientSocket(cSock));
+            printf("new client<%d> :IP=%s\n", int(cSock), inet_ntoa(clientAddr.sin_addr));
         }
-        return _cSock;
+        return cSock;
     }
 
     //receive message
@@ -185,10 +227,10 @@ public:
 
             SOCKET maxSock = _sock;
 
-            for (size_t i = 0; i < g_clients.size(); ++i)
+            for (size_t i = 0; i < _clients.size(); ++i)
             {
-                FD_SET(g_clients[i], &fdRead);
-                maxSock = max(maxSock, (int)g_clients[i]);
+                FD_SET(_clients[i]->sockfd(), &fdRead);
+                maxSock = max(maxSock, (int)_clients[i]);
             }
 
             timeval t = { 0, 0 };
@@ -205,16 +247,17 @@ public:
                 FD_CLR(_sock, &fdRead);
                 Accept();
             }
-            for (size_t i = 0; i < g_clients.size(); ++i)
+            for (size_t i = 0; i < _clients.size(); ++i)
             {
-                if (FD_ISSET(g_clients[i], &fdRead))
+                if (FD_ISSET(_clients[i]->sockfd(), &fdRead))
                 {
-                    if (-1 == RecvData(g_clients[i]))
+                    if (-1 == RecvData(_clients[i]))
                     {
-                        auto iter = g_clients.begin() + i;
-                        if (iter != g_clients.end())
+                        auto iter = _clients.begin() + i;
+                        if (iter != _clients.end())
                         {
-                            g_clients.erase(iter);
+                            delete _clients[i];
+                            _clients.erase(iter);
                         }
                     }
                 }
@@ -225,33 +268,49 @@ public:
     }
 
     //receive data
-    int RecvData(SOCKET _cSock)
+    int RecvData(ClientSocket *pClient)
     {
-        char recvBuf[4096] = {};
         //recv from client
-        int nLen = (int)recv(_cSock, recvBuf, sizeof(DataHeader), 0);
-        DataHeader *header = (DataHeader*)recvBuf;
+        int nLen = (int)recv(pClient->sockfd(), _szRecv, sizeof(DataHeader), 0);
         if (nLen <= 0) 
         {
-            printf("client<Socket=%d> quit\n", _cSock);
+            printf("client<Socket=%d> quit\n", pClient->sockfd());
             return -1;
         }
-        recv(_cSock, recvBuf + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-        OnNetMsg(_cSock, header);
+        //copy data from Message buf to receive buf
+        memcpy(pClient->msgBuf() + pClient->getLastPos() , _szRecv, nLen);
+        pClient->setLastPos(pClient->getLastPos() + nLen);
+
+        while (pClient->getLastPos() >= sizeof(DataHeader))
+        {
+            DataHeader* header = (DataHeader*)pClient->msgBuf();
+            if (pClient->getLastPos() >= header->dataLength)
+            {
+                int nSize = pClient->getLastPos() - header->dataLength;
+                OnNetMsg(pClient->sockfd(), header);
+                memcpy(pClient->msgBuf(), pClient->msgBuf() + header->dataLength, nSize);
+                pClient->setLastPos(nSize);
+            }
+            else
+            {
+                //residual a message
+                break;
+            }
+        }
         return 0;
     }
 
     //parse data
-    virtual void OnNetMsg(SOCKET _cSock, DataHeader* header)
+    virtual void OnNetMsg(SOCKET cSock, DataHeader* header)
     {
         switch (header->cmd)
         {
         case CMD_LOGIN:
         {
             Login *login = (Login*)header;
-            printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", login->dataLength, login->userName, login->passWord);
+            printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", header->dataLength, login->userName, login->passWord);
             LoginResult res;
-            send(_cSock, (char*)&res, sizeof(LoginResult), 0);
+            send(cSock, (char*)&res, sizeof(LoginResult), 0);
         }
         break;
         case CMD_LOGOUT:
@@ -259,23 +318,23 @@ public:
             Logout *logout = (Logout*)header;
             printf("recv cmd_login ,data len:%d, userName=%s\n", logout->dataLength, logout->userName);
             LogoutResult res;
-            send(_cSock, (char*)&res, sizeof(LogoutResult), 0);
+            send(cSock, (char*)&res, sizeof(LogoutResult), 0);
         }
         break;
         default:
             header->cmd = CMD_ERROR;
             header->dataLength = 0;
-            send(_cSock, (char*)&header, sizeof(header), 0);
+            send(cSock, (char*)&header, sizeof(header), 0);
             break;
         }
     }
 
     //send speckfy
-    int SendData(SOCKET _cSock, DataHeader* header)
+    int SendData(SOCKET cSock, DataHeader* header)
     {
         if (IsRun() && header)
         {
-            return send(_cSock, (const char*)header, header->dataLength, 0);
+            return send(cSock, (const char*)header, header->dataLength, 0);
         }
         return SOCKET_ERROR;
     }
@@ -285,9 +344,9 @@ public:
     {
         if (IsRun() && header)
         {
-            for (int i = 0; i < g_clients.size(); ++i)
+            for (int i = 0; i < _clients.size(); ++i)
             {
-                SendData(g_clients[i], header);
+                SendData(_clients[i]->sockfd(), header);
             }
         }
         return SOCKET_ERROR;
@@ -299,6 +358,8 @@ public:
     }
 private:
     SOCKET _sock;
-    std::vector<SOCKET> g_clients;
+
+    char _szRecv[RECV_BUF_SIZE];
+    std::vector<ClientSocket*> _clients;
 };
 #endif // _MYTCPSERVER_HPP_

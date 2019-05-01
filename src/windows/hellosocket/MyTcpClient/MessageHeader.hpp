@@ -11,7 +11,9 @@ enum CMD {
 };
 
 struct DataHeader {
-    DataHeader(short dl = 0, short cd = CMD_ERROR) : dataLength(dl), cmd(cd) {}
+    DataHeader(short dl = sizeof(DataHeader), short cd = CMD_ERROR) :
+        dataLength(dl),
+        cmd(cd) {}
     short dataLength; //data length
     short cmd;
 };
@@ -21,28 +23,30 @@ struct Login : public DataHeader {
 
     char userName[32];
     char passWord[32];
+    char data[932];
 };
 
 struct LoginResult : public DataHeader {
-    LoginResult() : DataHeader(sizeof(Login), CMD_LOGIN_RESULT), res(0) {}
+    LoginResult() : DataHeader(sizeof(LoginResult), CMD_LOGIN_RESULT), res(0) {}
 
     int res;
+    char data[992];
 };
 
 struct Logout : public DataHeader {
-    Logout() : DataHeader(sizeof(Login), CMD_LOGOUT) {}
+    Logout() : DataHeader(sizeof(Logout), CMD_LOGOUT) {}
 
     char userName[32];
 };
 
 struct LogoutResult : public DataHeader {
-    LogoutResult() : DataHeader(sizeof(Login), CMD_LOGOUT_RESULT), res(0) {}
+    LogoutResult() : DataHeader(sizeof(LogoutResult), CMD_LOGOUT_RESULT), res(0) {}
 
     int res;
 };
 
 struct NewUserJoin : public DataHeader {
-    NewUserJoin() : DataHeader(sizeof(Login), CMD_NEW_USER_JOIN), sock(0) {}
+    NewUserJoin() : DataHeader(sizeof(NewUserJoin), CMD_NEW_USER_JOIN), sock(0) {}
 
     int sock;
 };

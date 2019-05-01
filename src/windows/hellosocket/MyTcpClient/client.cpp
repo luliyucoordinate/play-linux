@@ -1,28 +1,17 @@
 #include "MyTcpClient.hpp"
 #include <thread>
 
-void cmdThread(MyTcpClient* client)
+bool g_bRun = true;
+void cmdThread()
 {
     while (true)
     {
         char cmdBuf[256] = {};
         scanf("%s", cmdBuf);
         if (0 == strcmp(cmdBuf, "exit")) {
-            client->Close();
+            g_bRun = false;
             printf("client exit\n");
             return;
-        }
-        else if (0 == strcmp(cmdBuf, "login"))
-        {
-            Login login;
-            strcpy(login.userName, "lly");
-            strcpy(login.passWord, "lly");
-            client->SendData(&login);
-        }
-        else if (0 == strcmp(cmdBuf, "logout"))
-        {
-            Logout logout;
-            client->SendData(&logout);
         }
         else
         {
@@ -33,18 +22,34 @@ void cmdThread(MyTcpClient* client)
 
 int main()
 {
-    MyTcpClient client;
-    client.InitSocket();
-    client.Connect("127.0.0.1", 14567);
+    const int cnt = 64;
+    MyTcpClient *client[cnt];
+    for (int i = 0; i < cnt; ++i)
+    {
+        client[i] = new MyTcpClient();
+        client[i]->InitSocket();
+        client[i]->Connect("127.0.0.1", 14567);
+    }
+    
 
-    std::thread t1(cmdThread, &client);
+    std::thread t1(cmdThread);
     t1.detach();
 
-    while (client.IsRun())
+    Login login;
+    strcpy(login.userName, "lly");
+    strcpy(login.passWord, "lly");
+    while (g_bRun)
     {
-        client.OnRun();
+        for (int i = 0; i < cnt; ++i)
+        {
+            client[i]->SendData(&login);
+            client[i]->OnRun();
+        }
     }
-    client.Close();
+   
+    for (int i = 0; i < cnt; ++i) {
+        client[i]->Close();
+    }
     getchar();
     return 0;
 }

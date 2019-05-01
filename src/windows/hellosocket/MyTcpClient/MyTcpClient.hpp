@@ -22,14 +22,19 @@
 #include <algorithm>
 #include "MessageHeader.hpp"
 
+#ifndef RECV_BUF_SIZE
+#define RECV_BUF_SIZE 10240
+#endif // !RECV_BUF_SIZE
 
 class MyTcpClient
 {
 public:
     MyTcpClient() :
-        _sock(INVALID_SOCKET)
+        _sock(INVALID_SOCKET),
+        _lastPos(0)
     {
-
+        memset(_szRecv, 0, RECV_BUF_SIZE);
+        memset(_szMsgBuf, 0, RECV_BUF_SIZE*10);
     }
     virtual ~MyTcpClient()
     {
@@ -46,7 +51,7 @@ public:
         WSAStartup(ver, &dat);
 #endif
         
-        if (INVALID_SOCKET == _sock) 
+        if (INVALID_SOCKET != _sock) 
         {
             printf("close old socket...\n");
             Close();
@@ -141,18 +146,34 @@ public:
     //receive data
     int RecvData()
     {
-        
-        char recvBuf[4096] = {};
         //recv from client
-        int nLen = recv(_sock, (char *)recvBuf, sizeof(DataHeader), 0);
-        DataHeader *header = (DataHeader*)recvBuf;
-        if (nLen <= 0) 
+        int nLen = recv(_sock, _szRecv, RECV_BUF_SIZE, 0);
+        if (nLen <= 0)
         {
-            printf("bye server\n");
-            return -1;
+            printf("<socket=%d> stop connect\n", _sock);
+            return false;
         }
-        recv(_sock, recvBuf + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-        OnNetMsg(header);
+        //copy data from Message buf to receive buf
+        memcpy(_szMsgBuf + _lastPos, _szRecv, nLen);
+        _lastPos += nLen;
+
+        while (_lastPos >= sizeof(DataHeader))
+        {
+            DataHeader* header = (DataHeader*)_szMsgBuf;
+            if (_lastPos >= header->dataLength)
+            {
+                int nSize = _lastPos - header->dataLength;
+                OnNetMsg(header);
+                memcpy(_szMsgBuf, _szMsgBuf + header->dataLength, nSize);
+                _lastPos = nSize;
+            }
+            else
+            {
+                //residual a message
+                break;
+            }
+        }
+
         return 0;
     }
 
@@ -164,7 +185,7 @@ public:
         case CMD_LOGIN_RESULT:
         {
             LoginResult *loginRes = (LoginResult*)header;
-            printf("recv data: login res, data len:%d\n", loginRes->dataLength);
+            printf("recv data: login res, data len:%d\n", header->dataLength);
         }
         break;
         case CMD_LOGOUT_RESULT:
@@ -179,8 +200,16 @@ public:
             printf("recv data: newuser join, data len:%d\n", newUser->dataLength);
         }
         break;
+        case CMD_ERROR:
+        {
+            printf("recv error, data len:%d\n", header->dataLength);
+        }
+        break;
         default:
-            break;
+        {
+            printf("recv unknowned message, data len:%d\n", header->dataLength);
+        }
+        break;
         }
     }
 
@@ -199,6 +228,8 @@ public:
     }
 private:
     SOCKET _sock;
-
+    int _lastPos;
+    char _szRecv[RECV_BUF_SIZE];
+    char _szMsgBuf[RECV_BUF_SIZE * 10];
 };
 #endif // _MYTCPCLIENT_HPP_
