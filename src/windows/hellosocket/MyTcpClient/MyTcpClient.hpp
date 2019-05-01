@@ -12,6 +12,9 @@
     #include <unistd.h>
     #include <arpa/inet.h>
     #include <string.h>
+    #define SOCKET          int
+    #define INVALID_SOCKET  (SOCKET)(-0)
+    #define SOCKET_ERROR    (-1)
 #endif
 
 #include <stdio.h>
@@ -19,21 +22,18 @@
 #include <algorithm>
 #include "MessageHeader.hpp"
 
-//for linux and mac os
-#define SOCKET          int
-#define INVALID_SOCKET  (SOCKET)(-0)
-#define SOCKET_ERROR    (-1)
 
 class MyTcpClient
 {
 public:
-    MyTcpClient()
+    MyTcpClient() :
+        _sock(INVALID_SOCKET)
     {
 
     }
     virtual ~MyTcpClient()
     {
-
+        Close();
     }
 
     //init socket
@@ -81,11 +81,11 @@ public:
         int res = connect(_sock, (sockaddr*)&_sin, sizeof(_sin));
         if (SOCKET_ERROR == res) 
         {
-            printf("connect server:<%s:port> error\n", ip, port);
+            printf("connect server:<%s:%d> error\n", ip, port);
         }
         else
         {
-            printf("connect server:<%s:port> finish\n", ip, port);
+            printf("connect server:<%s:%d> finish\n", ip, port);
         }
         return res;
     }
@@ -157,7 +157,7 @@ public:
     }
 
     //parse data
-    void OnNetMsg(DataHeader* header)
+    virtual void OnNetMsg(DataHeader* header)
     {
         switch (header->cmd)
         {
