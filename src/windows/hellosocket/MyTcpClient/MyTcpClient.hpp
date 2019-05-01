@@ -58,13 +58,13 @@ public:
         }
         else
         {
-            printf("establish socket finish!!!\n");
+            printf("establish socket<%d> finish!!!\n", _sock);
         }
         return 0;
     }
 
     //connect server
-    int Connect(char* ip, short port)
+    int Connect(const char* ip, short port)
     {
         if (INVALID_SOCKET == _sock)
         {
@@ -81,11 +81,11 @@ public:
         int res = connect(_sock, (sockaddr*)&_sin, sizeof(_sin));
         if (SOCKET_ERROR == res) 
         {
-            printf("connect error\n");
+            printf("connect server:<%s:port> error\n", ip, port);
         }
         else
         {
-            printf("connect finish\n");
+            printf("connect server:<%s:port> finish\n", ip, port);
         }
         return res;
     }
@@ -114,11 +114,12 @@ public:
             FD_ZERO(&fdReads);
             FD_SET(_sock, &fdReads);
 
-            timeval t = { 1, 0 };
+            timeval t = { 0, 0 }; //nonblock
             int res = select(_sock + 1, &fdReads, NULL, NULL, &t); //mac os should (_sock+1)
             if (res < 0)
             {
                 printf("socket<%d> select error\n", _sock);
+                Close();
                 return false;
             }
 
@@ -128,6 +129,7 @@ public:
                 if (-1 == RecvData())
                 {
                     printf("select error\n");
+                    Close();
                     return false;
                 }
             }
@@ -162,19 +164,19 @@ public:
         case CMD_LOGIN_RESULT:
         {
             LoginResult *loginRes = (LoginResult*)header;
-            printf("recv server login res ,data len:%d\n", loginRes->dataLength);
+            printf("recv data: login res, data len:%d\n", loginRes->dataLength);
         }
         break;
         case CMD_LOGOUT_RESULT:
         {
             LogoutResult *logoutRes = (LogoutResult*)header;
-            printf("recv server login res ,data len:%d\n", logoutRes->dataLength);
+            printf("recv data: login res, data len:%d\n", logoutRes->dataLength);
         }
         break;
         case CMD_NEW_USER_JOIN:
         {
             NewUserJoin *newUser = (NewUserJoin*)header;
-            printf("newuser join ,data len:%d\n", newUser->dataLength);
+            printf("recv data: newuser join, data len:%d\n", newUser->dataLength);
         }
         break;
         default:
