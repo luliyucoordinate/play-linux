@@ -308,7 +308,7 @@ public:
         case CMD_LOGIN:
         {
             Login *login = (Login*)header;
-            printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", header->dataLength, login->userName, login->passWord);
+            printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", login->dataLength, login->userName, login->passWord);
             LoginResult res;
             send(cSock, (char*)&res, sizeof(LoginResult), 0);
         }

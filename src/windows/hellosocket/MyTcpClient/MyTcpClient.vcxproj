@@ -147,11 +147,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="MessageHeader.hpp" />
     <ClInclude Include="MyTcpClient.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="client.cpp" />
-    <ClCompile Include="MessageHeader.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

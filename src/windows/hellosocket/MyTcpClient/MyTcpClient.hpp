@@ -151,7 +151,7 @@ public:
         if (nLen <= 0)
         {
             printf("<socket=%d> stop connect\n", _sock);
-            return false;
+            return -1;
         }
         //copy data from Message buf to receive buf
         memcpy(_szMsgBuf + _lastPos, _szRecv, nLen);
