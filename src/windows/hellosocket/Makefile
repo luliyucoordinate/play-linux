@@ -5,15 +5,15 @@ CC=g++
 
 all:server client
 
-server:./EasyTcpServer/server.cpp
+server:./MyTcpServer/server.cpp
 	$(CC) $^ $(LDFLAGS) $(CFLAGS) -o $@
-client:./EasyTcpClient/client.cpp
+client:./MyTcpClient/client.cpp
 	$(CC) $^ $(LDFLAGS) $(CFLAGS) -o $@
 
 
 .PHONY:clean
 clean:
-	-rm -f ./EasyTcpClient/*.o
-	-rm -f ./EasyTcpServer/*.o
+	-rm -f ./MyTcpClient/*.o
+	-rm -f ./MyTcpServer/*.o
 	-rm -f server client
 	-rm -f *.txt

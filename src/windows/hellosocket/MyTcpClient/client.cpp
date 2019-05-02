@@ -22,11 +22,17 @@ void cmdThread()
 
 int main()
 {
-    const int cnt = 64;
+    const int cnt = 1000;
     MyTcpClient *client[cnt];
     for (int i = 0; i < cnt; ++i)
     {
+        if (!g_bRun) return 0;
         client[i] = new MyTcpClient();
+    }
+
+    for (int i = 0; i < cnt; ++i)
+    {
+        if (!g_bRun) return 0;
         client[i]->InitSocket();
         client[i]->Connect("127.0.0.1", 14567);
     }
@@ -43,13 +49,13 @@ int main()
         for (int i = 0; i < cnt; ++i)
         {
             client[i]->SendData(&login);
-            client[i]->OnRun();
+            //client[i]->OnRun();
         }
     }
    
     for (int i = 0; i < cnt; ++i) {
         client[i]->Close();
     }
-    getchar();
+
     return 0;
 }

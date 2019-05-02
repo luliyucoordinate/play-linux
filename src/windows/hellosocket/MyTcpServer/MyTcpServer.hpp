@@ -164,7 +164,7 @@ public:
 #else 
             for (size_t i = 0; i < _clients.size(); ++i)
             {
-                close(_clients[i]);
+                close(_clients[i]->sockfd());
             }
             close(_sock);
 #endif
@@ -205,7 +205,7 @@ public:
             NewUserJoin userJoin;
             SendDataToAll(&userJoin);
             _clients.push_back(new ClientSocket(cSock));
-            printf("new client<%d> :IP=%s\n", int(cSock), inet_ntoa(clientAddr.sin_addr));
+            printf("<%d> new client<%d> :IP=%s\n", _clients.size(), int(cSock), inet_ntoa(clientAddr.sin_addr));
         }
         return cSock;
     }
@@ -230,7 +230,8 @@ public:
             for (size_t i = 0; i < _clients.size(); ++i)
             {
                 FD_SET(_clients[i]->sockfd(), &fdRead);
-                maxSock = max(maxSock, (int)_clients[i]);
+                if (maxSock < _clients[i]->sockfd())
+                    maxSock = _clients[i]->sockfd();
             }
 
             timeval t = { 0, 0 };
@@ -308,17 +309,17 @@ public:
         case CMD_LOGIN:
         {
             Login *login = (Login*)header;
-            printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", login->dataLength, login->userName, login->passWord);
+            /*printf("recv cmd_login ,data len:%d, userName=%s, passwd=%s\n", login->dataLength, login->userName, login->passWord);
             LoginResult res;
-            send(cSock, (char*)&res, sizeof(LoginResult), 0);
+            send(cSock, (char*)&res, sizeof(LoginResult), 0);*/
         }
         break;
         case CMD_LOGOUT:
         {
             Logout *logout = (Logout*)header;
-            printf("recv cmd_login ,data len:%d, userName=%s\n", logout->dataLength, logout->userName);
+            /*printf("recv cmd_login ,data len:%d, userName=%s\n", logout->dataLength, logout->userName);
             LogoutResult res;
-            send(cSock, (char*)&res, sizeof(LogoutResult), 0);
+            send(cSock, (char*)&res, sizeof(LogoutResult), 0);*/
         }
         break;
         default:

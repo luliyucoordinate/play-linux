@@ -23,14 +23,14 @@ struct Login : public DataHeader {
 
     char userName[32];
     char passWord[32];
-    //char data[932];
+    char data[932];
 };
 
 struct LoginResult : public DataHeader {
     LoginResult() : DataHeader(sizeof(LoginResult), CMD_LOGIN_RESULT), res(0) {}
 
     int res;
-   // char data[992];
+    char data[992];
 };
 
 struct Logout : public DataHeader {

@@ -4,6 +4,7 @@
 #ifdef _WIN32
     //for windows
     #define WIN32_LEAN_AND_MEAN
+    #define FD_SETSIZE		1024
     #include <windows.h>
     #include <WinSock2.h>
     #pragma comment(lib, "ws2_32.lib")
